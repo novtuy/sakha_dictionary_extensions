@@ -58,26 +58,52 @@ async function doSearch() {
             readedWord = null;
             resultsDiv.innerHTML = "<p>Тылга сөп түбэһии көстүбэтэ</p>";
             return;
-        }
-        else if (data.output == "err") {
+        } else if (data.output === "err") {
             readedWord = null;
-            resultsDiv.innerHTML = "<p>Көрдөөһүҥҥэ сыыһа баар. Ситимҥэ холбонуу суох эбэтэр VPN холбонон турар.</p>";
+            resultsDiv.innerHTML = "<p>Көрдөөһүҥҥэ сыыһа баар. VPN холбонон турар.</p>";
             return;
         }
 
         readedWord = word;
-
         resultsDiv.innerHTML = "";
 
         data.output.forEach(htmlBlock => {
+            // Wrapper для блока
+            const wrapper = document.createElement("div");
+            wrapper.className = "block-wrapper";
+            wrapper.style.position = "relative";
+            wrapper.style.marginBottom = "10px";
+
+            // Блок с HTML с сайта
             const div = document.createElement("div");
             div.className = "block";
 
             const html = htmlBlock.replace(/<br\s*\/?>/gi, '<span class="line-break"></span>');
             div.innerHTML = html;
+            
+            wrapper.appendChild(div);
 
-            resultsDiv.appendChild(div);
+            // Звезда поверх блока, невидимая для потока текста
+            const star = document.createElement("span");
+            star.className = "star";
+            star.innerHTML = "&#9734;";
+            star.style.position = "absolute";
+            star.style.top = "3px";
+            star.style.right = "10px";
+            star.style.cursor = "pointer";
+            star.style.fontSize = "25px";
+            star.style.zIndex = "999"; 
+            star.style.userSelect = "none";
+
+            // Чтобы текст и блок не «видели» звезду
+            star.style.pointerEvents = "auto";  // клики работают
+            div.style.pointerEvents = "auto";   // текст остаётся интерактивным
+
+            wrapper.appendChild(star);
+            resultsDiv.appendChild(wrapper);
         });
+
+
     } catch (err) {
         console.error("Error in click handler:", err);
         resultsDiv.innerHTML = "<p>Сыыһа тахсар дааннайдары ылыыга.</p>";
