@@ -1,0 +1,134 @@
+/* popup.css */
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  width: 360px;
+  margin: 0;
+  padding: 10px;
+  overflow: hidden;
+
+  /* оформление края */
+  border: 2px solid #B0CDE6;  /* яркая синяя рамка */
+  box-shadow: 
+    0 4px 12px rgba(0,0,0,0.25),   /* внешняя тень для объёма */
+    inset 0 2px 6px rgba(255,255,255,0.3); /* внутренняя тень для глубины */
+
+  /* фон */
+  background: linear-gradient(
+    to bottom,
+    #87CEEB 0%,
+    #B0E0E6 50%,
+    #ffffff 70%,
+    #98FB98 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 100%;   /* масштабируем градиент на всю область */
+  background-position: top;     /* всегда сверху */
+}
+
+.title {
+  position: relative;       /* нужно для псевдоэлемента */
+  font-size: 25px;
+  color: white;
+  text-align: center;
+  -webkit-text-stroke: 0.06em black; /* основная обводка */
+}
+
+.title::before {
+  content: attr(data-text);   /* текст берём из атрибута data-text */
+  position: absolute;
+  -webkit-text-stroke: .03em gold;
+}
+
+.top-buttons {
+    position: absolute;
+    top: 10px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between; 
+    padding: 0 10px;      
+    z-index: 1000;    
+}
+
+.icon-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-btn img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    transition: filter 0.3s ease;
+}
+
+.icon-btn:hover img {
+    filter: brightness(0) saturate(100%) invert(14%) sepia(100%) saturate(7000%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+
+input {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+  margin-bottom: 8px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+#searchBtn {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+  border-radius: 5px;
+  border: none;
+  background-color: #008000;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 10px;
+}
+
+#searchBtn:hover {
+  background-color: #006600;
+}
+
+#results {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.line-break {
+  display: block;
+  height: 4px;
+}
+
+.block {
+  text-align: justify;
+  background-color: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin-bottom: 10px;
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.block:hover {
+  transform: translateY(-2px);
+  box-shadow: 4px 4px 10px rgba(0,0,0,0.2);
+}
+
+.block mark {
+  background-color: #fffdc8;
+  color: black;
+  border-radius: 3px;
+}

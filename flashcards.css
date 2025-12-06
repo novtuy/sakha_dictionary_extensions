@@ -1,0 +1,32 @@
+body {
+    font-family: sans-serif;
+    padding: 20px;
+    text-align: center;
+}
+
+#card {
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 30px;
+    margin: 20px auto;
+    width: 300px;
+    height: 150px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+}
+
+.buttons button, #addBtn {
+    margin: 10px 5px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 5px;
+    border: none;
+    background-color: #f0f0f0;
+    transition: background-color 0.2s;
+}
+
+.buttons button:hover, #addBtn:hover {
+    background-color: #ddd;
+}
