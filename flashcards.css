@@ -1,32 +1,133 @@
+/* Общие стили */
 body {
-    font-family: sans-serif;
+    font-family: Arial, sans-serif;
     padding: 20px;
-    text-align: center;
+    background-color: #f9f9f9;
+    color: #333;
 }
 
-#card {
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    padding: 30px;
-    margin: 20px auto;
-    width: 300px;
-    height: 150px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
-}
-
-.buttons button, #addBtn {
-    margin: 10px 5px;
-    padding: 8px 12px;
+button {
     cursor: pointer;
-    border-radius: 5px;
+    margin: 5px 5px 5px 0;
+    padding: 8px 12px;
     border: none;
-    background-color: #f0f0f0;
+    border-radius: 5px;
+    background-color: #1976d2;
+    color: white;
+    font-size: 14px;
     transition: background-color 0.2s;
 }
 
-.buttons button:hover, #addBtn:hover {
-    background-color: #ddd;
+button:hover {
+    background-color: #1565c0;
+}
+
+/* Переключение режимов */
+#modeSwitch {
+    margin-bottom: 20px;
+}
+
+/* Список карточек */
+#listMode {
+    display: none;
+}
+
+.list-controls {
+    margin-bottom: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #e3f2fd;
+}
+
+.delete-btn {
+    color: red;
+    background-color: transparent;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+.copy-btn {
+    color: green;
+    background-color: transparent;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* Flashcards */
+#flashcardMode {
+    display: none;
+}
+
+#flashcardContainer {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    padding: 30px 20px;
+    max-width: 700px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+/* Блок текста перед показом ответа */
+#flashcardFront.front {
+    font-size: 22px;
+    line-height: 1.5;
+    text-align: center;
+    min-height: 100px;
+    margin-bottom: 20px;
+}
+
+/* Блок текста с ответом (скролл и выравнивание по ширине) */
+#flashcardAnswer.answer {
+    display: none; /* Скрыт до showAnswer */
+    max-height: 200px; /* Ограничиваем высоту блока для прокрутки */
+    overflow-y: auto;
+    text-align: justify;
+    text-justify: inter-word;
+    line-height: 1.5;
+    word-wrap: break-word;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    background-color: #f2f2f2;
+}
+
+/* Прогресс */
+#flashcardProgress {
+    font-size: 14px;
+    margin-bottom: 20px;
+    color: #555;
+}
+
+.flashcard-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.list-footer {
+    margin-top: 20px;
+    text-align: right;
+    color: #555; /* приглушённый цвет */
+    font-size: 14px;
+}
+.list-footer a {
+    color: #555;
+    text-decoration: none;
+}
+.list-footer a:hover {
+    text-decoration: underline;
 }

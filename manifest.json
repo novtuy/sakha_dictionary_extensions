@@ -17,5 +17,11 @@
   },
   "background": {
     "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/emblema_ysn_red.svg",
+    "32": "icons/emblema_ysn_red.png",
+    "48": "icons/emblema_ysn_red.png",
+    "128": "icons/emblema_ysn_red.png"
   }
 }

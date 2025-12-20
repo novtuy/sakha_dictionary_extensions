@@ -2,28 +2,65 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Флеш-карточки</title>
+    <title>Якутские карточки</title>
     <link rel="stylesheet" href="flashcards.css">
 </head>
 <body>
-    <h1>Флеш-карточки</h1>
 
-    <div id="card-container">
-        <div id="card">
-            <div id="front"></div>
-            <div id="back" style="display:none;"></div>
-        </div>
+<h1>Якутские карточки</h1>
 
-        <div class="buttons">
-            <button id="showBtn">Показать ответ</button>
-            <button id="nextBtn">Следующая</button>
-        </div>
+<!-- 🔁 Переключение режимов -->
+<div id="modeSwitch">
+    <button id="toFlashcardsBtn">Флеш-карты</button>
+    <button id="toListBtn">Список</button>
+</div>
 
-        <div>
-            <button id="addBtn">Добавить текущее слово из словаря</button>
+<!-- ⭐ Режим флеш-карт -->
+<div id="flashcardMode">
+    <div id="flashcardContainer">
+        <!-- Блок для текста карточки -->
+        <div id="flashcardFront" class="front">Загрузка…</div>
+        <div id="flashcardAnswer" class="answer"></div>
+        
+        <div id="flashcardProgress"></div>
+        <div class="flashcard-buttons">
+            <button id="showAnswerBtn">Показать ответ</button>
+            <button id="knowBtn">Знаю</button>
+            <button id="dontKnowBtn">Не знаю</button>
         </div>
     </div>
+</div>
 
-    <script src="flashcards.js"></script>
+<!-- 📋 Режим списка -->
+<div id="listMode">
+    <div class="list-controls">
+        <button id="refreshBtn">Обновить</button>
+        <input type="file" id="importFile" style="display:none" accept=".json"/>
+        <button id="importBtn">Импорт</button>
+        <button id="exportBtn">Экспорт</button>
+        <button id="clearAllBtn">Очистить базу</button>
+    </div>
+
+    <table id="cardsTable">
+        <thead>
+            <tr>
+                <th>Слово</th>
+                <th>Значение</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    
+    <p style="margin-top:10px; font-size:14px; color:#d9534f; text-align:right;">
+    Очистка браузера или удаление расширения приведет к удалению базы данных. Экспортируйте данные, чтобы не потерять их.
+    </p>
+
+    <div id="listFooter" class="list-footer">
+        <p>Контакты: <a href="mailto:example@example.com">novtuy@gmail.com</a></p>
+    </div>
+</div>
+
+<script src="flashcards.js"></script>
 </body>
 </html>
