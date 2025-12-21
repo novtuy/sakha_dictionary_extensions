@@ -1,79 +1,126 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Якутские карточки</title>
-    <link rel="stylesheet" href="flashcards.css">
-</head>
-<body>
+    <link rel="stylesheet" href="flashcards.css" />
+  </head>
+  <body>
+    <h1>Якутские карточки</h1>
 
-<h1>Якутские карточки</h1>
+    <!-- 🔁 Переключение режимов -->
+    <div id="modeSwitch">
+      <button id="toFlashcardsBtn">Флеш-карты</button>
+      <button id="toListBtn">Список</button>
+    </div>
 
-<!-- 🔁 Переключение режимов -->
-<div id="modeSwitch">
-    <button id="toFlashcardsBtn">Флеш-карты</button>
-    <button id="toListBtn">Список</button>
-</div>
+    <!-- ⭐ Режим флеш-карт -->
+    <div id="flashcardMode">
+      <div id="flashcardContainer">
+        <div
+          id="flashcardCountSelect"
+          style="margin-bottom: 15px; text-align: right; display: block"
+        >
+          <label style="font-size: 14px">
+            Количество карточек за раз:
+            <input
+              type="number"
+              id="flashcardCountInput"
+              min="0"
+              value="20"
+              placeholder="Все"
+              style="width: 60px; padding: 2px 4px; font-size: 14px"
+            />
+          </label>
+        </div>
 
-<!-- ⭐ Режим флеш-карт -->
-<div id="flashcardMode">
-    <div id="flashcardContainer">
-        <!-- Блок для текста карточки -->
-        <div id="flashcardFront" class="front">Загрузка…</div>
-        <div id="flashcardAnswer" class="answer"></div>
-        
-        <div id="flashcardProgress"></div>
-        <div class="flashcard-buttons">
+        <!-- 🔀 Выбор режима (вертикальные кнопки) -->
+        <div
+          id="flashcardModeSelect"
+          class="flashcard-mode-select"
+          style="display: block"
+        >
+          <button data-mode="normal" class="mode-btn">Обычный режим</button>
+          <button data-mode="smart" class="mode-btn">
+            Интеллектуальный режим
+          </button>
+        </div>
+
+        <!-- ❗ Карточки (скрыты до выбора режима) -->
+        <div id="flashcardContent" style="display: none">
+          <div id="flashcardFront" class="front"></div>
+          <div id="flashcardAnswer" class="answer"></div>
+
+          <div id="flashcardProgress"></div>
+
+          <div class="flashcard-buttons">
             <button id="dontKnowBtn">Показать ответ</button>
             <button id="knowBtn">Знаю</button>
+          </div>
         </div>
+      </div>
     </div>
-</div>
 
-<!-- 📋 Режим списка -->
-<div id="listMode">
-    <div class="list-controls">
-        <input type="text" id="searchInput" placeholder="Поиск...">
+    <!-- 📋 Режим списка -->
+    <div id="listMode">
+      <div class="list-controls">
+        <input type="text" id="searchInput" placeholder="Поиск..." />
         <select id="sortSelect">
-            <option value="addedAsc">По добавлению ↑</option>
-            <option value="addedDesc">По добавлению ↓</option>
-            <option value="alphaAsc">По алфавиту ↑</option>
-            <option value="alphaDesc">По алфавиту ↓</option>
+          <option value="addedAsc">По добавлению ↑</option>
+          <option value="addedDesc">По добавлению ↓</option>
+          <option value="alphaAsc">По алфавиту ↑</option>
+          <option value="alphaDesc">По алфавиту ↓</option>
         </select>
-        <br>
+        <br />
         <button id="refreshBtn">Обновить</button>
-        <input type="file" id="importFile" style="display:none" accept=".json"/>
+        <input
+          type="file"
+          id="importFile"
+          style="display: none"
+          accept=".json"
+        />
         <button id="importBtn">Импорт</button>
         <button id="exportBtn">Экспорт</button>
         <button id="clearAllBtn">Очистить базу</button>
-    </div>
+      </div>
 
-    <table id="cardsTable">
+      <table id="cardsTable">
         <thead>
-            <tr>
-                <th>Слово</th>
-                <th>Значение</th>
-                <th>Действия</th>
-            </tr>
+          <tr>
+            <th>Слово</th>
+            <th>Значение</th>
+            <th>Повторение</th>
+            <th>Действия</th>
+          </tr>
         </thead>
         <tbody></tbody>
-    </table>
-    <div id="paginationControls" class="pagination">
+      </table>
+      <div id="paginationControls" class="pagination">
         <button id="prevPage">&lt;</button>
-        <input id="pageInput" type="number" value="1" min="1">
+        <input id="pageInput" type="number" value="1" min="1" />
         <span id="totalPages">/ 1</span>
         <button id="nextPage">&gt;</button>
-    </div>
-    
-    <p style="margin-top:10px; font-size:14px; color:#d9534f; text-align:right;">
-    Очистка браузера или удаление расширения приведет к удалению базы данных. Экспортируйте данные, чтобы не потерять их.
-    </p>
+      </div>
 
-    <div id="listFooter" class="list-footer">
-        <p>Контакты: <a href="mailto:example@example.com">novtuy@gmail.com</a></p>
-    </div>
-</div>
+      <p
+        style="
+          margin-top: 10px;
+          font-size: 14px;
+          color: #d9534f;
+          text-align: right;
+        "
+      >
+        Очистка браузера или удаление расширения приведет к удалению базы
+        данных. Экспортируйте данные, чтобы не потерять их.
+      </p>
 
-<script src="flashcards.js"></script>
-</body>
+      <div id="listFooter" class="list-footer">
+        <p>
+          Контакты: <a href="mailto:example@example.com">novtuy@gmail.com</a>
+        </p>
+      </div>
+    </div>
+
+    <script src="flashcards.js"></script>
+  </body>
 </html>
