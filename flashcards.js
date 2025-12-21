@@ -1,7 +1,13 @@
 let db;
-let flashcardsQueue = [];
-let flashcardIndex = 0;
-let showAnswer = false;
+let currentSearch = "";   // для поиска
+let currentSort = "added"; // "added" или "alpha" (по алфавиту)
+
+const flashcardSession = { index: 0, showAnswer: false, queue: []};
+const pagination = {
+    currentPage: 1,
+    pageSize: 10,
+    totalPages: 1
+};
 
 // ---------------------------
 // Открытие IndexedDB
@@ -33,10 +39,7 @@ function openDB() {
     });
 }
 
-// ---------------------------
-// Загрузка всех карточек
-// ---------------------------
-async function loadCards() {
+async function loadCards(page = 1) {
     await openDB();
     const tbody = document.querySelector("#cardsTable tbody");
     tbody.innerHTML = "";
@@ -46,18 +49,51 @@ async function loadCards() {
     const request = store.getAll();
 
     request.onsuccess = function(event) {
-        const cards = event.target.result;
+        let cards = event.target.result;
 
         if (!cards || cards.length === 0) {
             tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">Карточек нет</td></tr>`;
+            pagination.totalPages = 1;
+            updatePaginationControls();
             return;
         }
 
-        cards.forEach(card => {
+        // --- Фильтр по поиску ---
+        if (currentSearch !== "") {
+            const searchLower = currentSearch.toLowerCase();
+            cards = cards.filter(c =>
+                c.front && c.front.toLowerCase().includes(searchLower)
+            );
+        }
+
+        // --- Сортировка ---
+        if (currentSort === "addedAsc") {
+            // Оставляем порядок по добавлению
+            cards.sort((a, b) => (a.id || 0) - (b.id || 0)); // если есть id, иначе порядок в IndexedDB
+        } else if (currentSort === "addedDesc") {
+            cards.sort((a, b) => (b.id || 0) - (a.id || 0));
+        } else if (currentSort === "alphaAsc") {
+            cards.sort((a, b) => (a.front || "").localeCompare(b.front || ""));
+        } else if (currentSort === "alphaDesc") {
+            cards.sort((a, b) => (b.front || "").localeCompare(a.front || ""));
+        }
+        // "added" оставляем порядок как есть (по добавлению)
+
+        // --- Пагинация ---
+        pagination.totalPages = Math.ceil(cards.length / pagination.pageSize);
+        if (page > pagination.totalPages) page = pagination.totalPages;
+        if (page < 1) page = 1;
+        pagination.currentPage = page;
+
+        const start = (page - 1) * pagination.pageSize;
+        const end = start + pagination.pageSize;
+        const pageCards = cards.slice(start, end);
+
+        // --- Отображение карточек ---
+        pageCards.forEach(card => {
             if (!card.front) return;
 
             const row = document.createElement("tr");
-
             row.innerHTML = `
                 <td>${card.front}</td>
                 <td>${card.back}</td>
@@ -66,13 +102,38 @@ async function loadCards() {
                     <button class="delete-btn">Удалить</button>
                 </td>
             `;
-
             tbody.appendChild(row);
         });
+
+        updatePaginationControls();
     };
 
     request.onerror = (err) => console.error("Ошибка получения карточек:", err);
+};
+
+function updatePaginationControls() {
+    const pageInput = document.getElementById("pageInput");
+    const totalPagesSpan = document.getElementById("totalPages");
+    pageInput.value = pagination.currentPage;
+    totalPagesSpan.innerText = `/ ${pagination.totalPages}`;
+
+    document.getElementById("prevPage").disabled = pagination.currentPage <= 1;
+    document.getElementById("nextPage").disabled = pagination.currentPage >= pagination.totalPages;
 }
+
+// Обработчики кнопок и поля ввода
+document.getElementById("prevPage").addEventListener("click", () => {
+    if (pagination.currentPage > 1) loadCards(pagination.currentPage - 1);
+});
+document.getElementById("nextPage").addEventListener("click", () => {
+    if (pagination.currentPage < pagination.totalPages) loadCards(pagination.currentPage + 1);
+});
+document.getElementById("pageInput").addEventListener("change", (e) => {
+    let page = parseInt(e.target.value);
+    if (isNaN(page) || page < 1) page = 1;
+    if (page > pagination.totalPages) page = pagination.totalPages;
+    loadCards(page);
+});
 
 // ---------------------------
 // Удаление карточки по front
@@ -154,26 +215,29 @@ async function importCards(file) {
     await openDB();
     const transaction = db.transaction("cards", "readwrite");
     const store = transaction.objectStore("cards");
+    
+    const existingFronts = await new Promise((resolve, reject) => {
+        const req = store.getAll();
+        req.onsuccess = (event) => resolve(event.target.result.map(c => c.front));
+        req.onerror = (err) => reject(err);
+    });
 
-    // Получаем все фронты через request.onsuccess
-    const getAllRequest = store.getAll();
-    getAllRequest.onsuccess = function(event) {
-        const existingFronts = event.target.result.map(c => c.front);
+    // Добавляем новые карточки последовательно
+    for (const card of cards) {
+        if (!card.front || !card.back) continue;
+        if (existingFronts.includes(card.front.trim())) continue;
 
-        for (const card of cards) {
-            if (!card.front || !card.back) continue;
-            if (existingFronts.includes(card.front.trim())) continue;
-            store.put({ front: card.front.trim(), back: card.back.trim(), saved: true });
-        }
-    };
-
-    getAllRequest.onerror = (err) => console.error("Ошибка при чтении базы для импорта:", err);
+        await new Promise((resolve, reject) => {
+            const req = store.put({ front: card.front.trim(), back: card.back.trim(), saved: true });
+            req.onsuccess = () => resolve();
+            req.onerror = (e) => reject(e);
+        });
+    }
 
     transaction.oncomplete = () => {
         loadCards();
         console.log("Импорт завершён");
     };
-
     transaction.onerror = (err) => console.error("Ошибка транзакции при импорте:", err);
 }
 
@@ -255,14 +319,14 @@ async function loadFlashcards() {
     const request = store.getAll();
 
     request.onsuccess = (e) => {
-        flashcardsQueue = e.target.result
+        flashcardSession.queue = e.target.result
             .filter(c => c.front)
             .map(c => ({ front: c.front, back: c.back }));
 
         // Перемешиваем массив случайным образом
-        flashcardsQueue = shuffleArray(flashcardsQueue);
+        flashcardSession.queue = shuffleArray(flashcardSession.queue);
 
-        flashcardIndex = 0;
+        flashcardSession.index = 0;
         showFlashcard();
     };
 }
@@ -271,24 +335,24 @@ function showFlashcard() {
     const frontEl = document.getElementById("flashcardFront");
     const answerEl = document.getElementById("flashcardAnswer");
 
-    if (flashcardsQueue.length === 0) {
+    if (flashcardSession.queue.length === 0) {
         frontEl.innerText = "Карточек нет";
         answerEl.style.display = "none";
         return;
     }
 
-    if (flashcardIndex >= flashcardsQueue.length) {
+    if (flashcardSession.index >= flashcardSession.queue.length) {
         frontEl.innerText = "Повторение закончено 🎉";
         answerEl.style.display = "none";
         return;
     }
 
     document.getElementById("flashcardProgress").innerText =
-        `Карточка ${flashcardIndex + 1} / ${flashcardsQueue.length}`;
+        `Карточка ${flashcardSession.index + 1} / ${flashcardSession.queue.length}`;
 
-    const card = flashcardsQueue[flashcardIndex];
+    const card = flashcardSession.queue[flashcardSession.index];
 
-    if (!showAnswer) {
+    if (!flashcardSession.showAnswer) {
         frontEl.classList.add("front");
         answerEl.style.display = "none";
         frontEl.innerText = card.front;
@@ -314,41 +378,58 @@ function showListMode() {
 }
 
 document.getElementById("toFlashcardsBtn").addEventListener("click", () => {
-    showAnswer = false;
-    document.getElementById("showAnswerBtn").innerText = showAnswer ? "Скрыть ответ" : "Показать ответ";
+    flashcardSession.showAnswer = false;
+    document.getElementById("dontKnowBtn").innerText = flashcardSession.showAnswer ? "Не знаю" : "Показать ответ";
     showFlashcardsMode();
 });
 document.getElementById("toListBtn").addEventListener("click", showListMode);
 
 
 document.getElementById("knowBtn").addEventListener("click", () => {
-    flashcardIndex++;
-    showAnswer = false;
-    document.getElementById("showAnswerBtn").innerText = showAnswer ? "Скрыть ответ" : "Показать ответ";
+    flashcardSession.index++;
+    flashcardSession.showAnswer = false;
+    document.getElementById("dontKnowBtn").innerText = flashcardSession.showAnswer ? "Не знаю" : "Показать ответ";
     showFlashcard();
     
 });
+
 document.getElementById("dontKnowBtn").addEventListener("click", () => {
-    if (!showAnswer) {
-        showAnswer = !showAnswer;
+    if (!flashcardSession.showAnswer) {
+        flashcardSession.showAnswer = true;
         showFlashcard();
-        document.getElementById("showAnswerBtn").innerText = showAnswer ? "Скрыть ответ" : "Показать ответ";
-    }
-    else {
-        const card = flashcardsQueue[flashcardIndex];
-        const remaining = flashcardsQueue.slice(flashcardIndex + 1);
-        remaining.unshift(card);
-        const shuffled = shuffleArray(remaining);
-        flashcardsQueue = flashcardsQueue.slice(0, flashcardIndex + 1).concat(shuffled);
-        flashcardIndex++;      
-        showAnswer = false;
-        document.getElementById("showAnswerBtn").innerText = showAnswer ? "Скрыть ответ" : "Показать ответ";
+        document.getElementById("dontKnowBtn").innerText = flashcardSession.showAnswer ? "Не знаю" : "Показать ответ";
+    } else {
+        const card = flashcardSession.queue[flashcardSession.index];
+
+        // Убираем текущую карточку из очереди после текущей позиции
+        const remaining = flashcardSession.queue.slice(flashcardSession.index + 1);
+
+        // Генерируем случайную позицию минимум через 2 карточки после текущей
+        const minIndex = 2; // минимум через 2 карточки
+        const maxIndex = remaining.length;
+        const insertIndex = minIndex + Math.floor(Math.random() * (maxIndex - minIndex + 1));
+
+        // Вставляем карточку обратно
+        remaining.splice(insertIndex, 0, card);
+
+        // Обновляем очередь
+        flashcardSession.queue = flashcardSession.queue.slice(0, flashcardSession.index + 1).concat(remaining);
+
+        flashcardSession.index++;      
+        flashcardSession.showAnswer = false;
+        document.getElementById("dontKnowBtn").innerText = flashcardSession.showAnswer ? "Не знаю" : "Показать ответ";
         showFlashcard();
     }
 });
 
-document.getElementById("showAnswerBtn").addEventListener("click", () => {
-    showAnswer = !showAnswer;
-    showFlashcard();
-    document.getElementById("showAnswerBtn").innerText = showAnswer ? "Скрыть ответ" : "Показать ответ";
+document.getElementById("searchInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        currentSearch = e.target.value.trim(); // убираем лишние пробелы
+        loadCards(1); // сбрасываем на первую страницу
+    }
+});
+
+document.getElementById("sortSelect").addEventListener("change", (e) => {
+    currentSort = e.target.value;
+    loadCards(1); // при сортировке тоже на первую страницу
 });

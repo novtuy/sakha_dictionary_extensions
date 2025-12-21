@@ -24,9 +24,8 @@
         
         <div id="flashcardProgress"></div>
         <div class="flashcard-buttons">
-            <button id="showAnswerBtn">Показать ответ</button>
+            <button id="dontKnowBtn">Показать ответ</button>
             <button id="knowBtn">Знаю</button>
-            <button id="dontKnowBtn">Не знаю</button>
         </div>
     </div>
 </div>
@@ -34,6 +33,14 @@
 <!-- 📋 Режим списка -->
 <div id="listMode">
     <div class="list-controls">
+        <input type="text" id="searchInput" placeholder="Поиск...">
+        <select id="sortSelect">
+            <option value="addedAsc">По добавлению ↑</option>
+            <option value="addedDesc">По добавлению ↓</option>
+            <option value="alphaAsc">По алфавиту ↑</option>
+            <option value="alphaDesc">По алфавиту ↓</option>
+        </select>
+        <br>
         <button id="refreshBtn">Обновить</button>
         <input type="file" id="importFile" style="display:none" accept=".json"/>
         <button id="importBtn">Импорт</button>
@@ -51,6 +58,12 @@
         </thead>
         <tbody></tbody>
     </table>
+    <div id="paginationControls" class="pagination">
+        <button id="prevPage">&lt;</button>
+        <input id="pageInput" type="number" value="1" min="1">
+        <span id="totalPages">/ 1</span>
+        <button id="nextPage">&gt;</button>
+    </div>
     
     <p style="margin-top:10px; font-size:14px; color:#d9534f; text-align:right;">
     Очистка браузера или удаление расширения приведет к удалению базы данных. Экспортируйте данные, чтобы не потерять их.
