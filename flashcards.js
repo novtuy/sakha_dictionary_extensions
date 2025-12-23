@@ -1,3 +1,13 @@
+const DEBUG = false; // true — для разработки, false — для релиза
+
+if (!DEBUG) {
+  console.log = function () {};
+  console.warn = function () {}; // если хотите убрать предупреждения
+  console.error = function () {}; // если хотите убрать ошибки (обычно оставляют)
+}
+
+const api = typeof browser !== "undefined" ? browser : chrome;
+
 let db;
 let currentSearch = ""; // для поиска
 let currentSort = "added"; // "added" или "alpha" (по алфавиту)
@@ -14,6 +24,8 @@ const pagination = {
   pageSize: 10,
   totalPages: 1,
 };
+
+const countInput = document.getElementById("flashcardCountInput");
 
 // ---------------------------
 // Открытие IndexedDB
@@ -33,6 +45,8 @@ function openDB() {
         });
         store.createIndex("front", "front", { unique: true });
         store.createIndex("back", "back", { unique: false });
+        store.createIndex("daysLeft", "daysLeft", { unique: false });
+        store.createIndex("counter", "counter", { unique: false });
       }
     };
 
@@ -46,6 +60,22 @@ function openDB() {
       reject(event.target.error);
     };
   });
+}
+
+function fibonacciByIndex(n) {
+  if (n === 0) return 0;
+  if (n === 1) return 1;
+
+  let a = 0,
+    b = 1;
+
+  for (let i = 2; i <= n; i++) {
+    const next = a + b;
+    a = b;
+    b = next;
+  }
+
+  return b;
 }
 
 // ---------------------------
@@ -64,7 +94,7 @@ async function loadCards(page = 1) {
     let cards = event.target.result;
 
     if (!cards || cards.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">Карточек нет</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Карточек нет</td></tr>`;
       pagination.totalPages = 1;
       updatePaginationControls();
       return;
@@ -108,8 +138,11 @@ async function loadCards(page = 1) {
       row.innerHTML = `
                 <td style="text-align: left">${card.front}</td>
                 <td style="text-align: justify">${card.back}</td>
-                <td style="text-align: center">1</td>
-                <td><button class="copy-btn">Копировать</button>
+                <td style="text-align: center">${card.daysLeft}\\${
+        fibonacciByIndex(card.counter + 1) - 1
+      } (${card.counter})</td>
+                <td><button class="clear-btn">Обн. счетчик</button>
+                    <button class="copy-btn">Копировать</button>
                     <button class="delete-btn">Удалить</button></td>
             `;
       tbody.appendChild(row);
@@ -189,6 +222,8 @@ async function exportCards() {
     const safeCards = cards.map((c) => ({
       front: String(c.front || "").trim(),
       back: String(c.back || "").trim(),
+      daysLeft: c.daysLeft !== undefined ? c.daysLeft : 0,
+      counter: c.counter !== undefined ? c.counter : 0,
     }));
 
     const blob = new Blob([JSON.stringify(safeCards, null, 2)], {
@@ -249,6 +284,8 @@ async function importCards(file) {
       const req = store.put({
         front: card.front.trim(),
         back: card.back.trim(),
+        daysLeft: card.daysLeft !== undefined ? card.daysLeft : 0,
+        counter: card.counter !== undefined ? card.counter : 0,
         saved: true,
       });
       req.onsuccess = () => resolve();
@@ -277,17 +314,85 @@ async function clearAllCards() {
   request.onerror = (err) => console.error("Ошибка очистки базы:", err);
 }
 
+async function updateDaysLeftIfNeeded() {
+  const today = new Date().toISOString().slice(0, 10);
+  let lastUpdate = localStorage.getItem("lastDaysUpdate");
+
+  if (!lastUpdate) {
+    localStorage.setItem("lastDaysUpdate", today);
+    lastUpdate = today;
+    return;
+  }
+
+  if (lastUpdate === today) return; // уже обновляли сегодня
+
+  // сколько дней прошло
+  const diffDays = lastUpdate
+    ? Math.floor(
+        (new Date(today) - new Date(lastUpdate)) / (1000 * 60 * 60 * 24)
+      )
+    : 1;
+
+  await openDB();
+  const tx = db.transaction("cards", "readwrite");
+  const store = tx.objectStore("cards");
+
+  const req = store.getAll();
+  req.onsuccess = () => {
+    const cards = req.result;
+
+    cards.forEach((card) => {
+      if (typeof card.daysLeft === "number") {
+        card.daysLeft -= diffDays;
+        if (card.counter == 0 && card.daysLeft < 0) card.daysLeft = 0;
+        store.put(card);
+      }
+    });
+  };
+
+  localStorage.setItem("lastDaysUpdate", today);
+}
+
 // ---------------------------
 // Обработчики кликов
 // ---------------------------
 document.addEventListener("DOMContentLoaded", () => {
+  updateDaysLeftIfNeeded();
   loadCards();
+
+  const savedCount = localStorage.getItem("flashcardCount");
+  if (savedCount !== null) {
+    document.getElementById("flashcardCountInput").value = savedCount;
+  }
 
   // Удаление отдельной карточки по front
   document
     .querySelector("#cardsTable tbody")
-    .addEventListener("click", (event) => {
+    .addEventListener("click", async (event) => {
       const row = event.target.closest("tr");
+      if (event.target.classList.contains("clear-btn")) {
+        const front = row.querySelector("td:first-child").innerText;
+        if (!front) return;
+
+        await openDB();
+        const tx = db.transaction("cards", "readwrite");
+        const store = tx.objectStore("cards");
+
+        const getRequest = store.index("front").get(front);
+        getRequest.onsuccess = (e) => {
+          const dbCard = e.target.result;
+          if (!dbCard) return;
+
+          dbCard.counter = 0;
+          dbCard.daysLeft = 0;
+
+          store.put(dbCard);
+        };
+        getRequest.onerror = (err) =>
+          console.error("Ошибка обнуления карточки:", err);
+
+        loadCards(parseInt(document.getElementById("pageInput").value));
+      }
 
       if (event.target.classList.contains("delete-btn")) {
         const front = row.querySelector("td:first-child").innerText;
@@ -324,24 +429,39 @@ async function loadFlashcards() {
   const request = store.getAll();
 
   request.onsuccess = (e) => {
-    let cards = e.target.result
-      .filter((c) => c.front)
-      .map((c) => ({ front: c.front, back: c.back }));
+    let cards = e.target.result.filter((c) => c.front); // убираем пустые front
 
-    // Перемешиваем массив
-    cards = shuffleArray(cards);
+    if (flashcardSession.modeType === "smart") {
+      // берем только те карточки, где daysLeft <= 0
+      cards = cards.filter((c) => c.daysLeft <= 0);
 
-    // Получаем количество карточек из инпута
+      // сортируем по возрастанию daysLeft (приоритет: меньшее значение)
+      cards.sort((a, b) => a.daysLeft - b.daysLeft);
+    } else {
+      // обычный режим — перемешиваем карточки
+      cards = shuffleArray(cards);
+    }
+
+    // Ограничение количества карточек по input
     const countInput = document.getElementById("flashcardCountInput").value;
     const count = parseInt(countInput);
     if (!isNaN(count) && count > 0 && count < cards.length) {
-      cards = cards.slice(0, count);
+      cards = shuffleArray(cards.slice(0, count));
     }
 
-    flashcardSession.queue = cards;
+    // Сохраняем в сессию
+    flashcardSession.queue = cards.map((c) => ({
+      front: c.front,
+      back: c.back,
+      daysLeft: c.daysLeft,
+      counter: c.counter,
+    }));
     flashcardSession.index = 0;
+
     showFlashcard();
   };
+
+  request.onerror = (err) => console.error("Ошибка загрузки карточек:", err);
 }
 
 function showFlashcard() {
@@ -349,23 +469,29 @@ function showFlashcard() {
   const frontEl = document.getElementById("flashcardFront");
   const answerEl = document.getElementById("flashcardAnswer");
 
-  if (flashcardSession.queue.length === 0) {
-    frontEl.innerText = "Карточек нет";
-    answerEl.style.display = "none";
-    return;
-  }
-
-  if (flashcardSession.index >= flashcardSession.queue.length) {
-    frontEl.innerText = "Повторение закончено 🎉";
-    answerEl.style.display = "none";
-    return;
-  }
+  const card = flashcardSession.queue[flashcardSession.index];
 
   document.getElementById("flashcardProgress").innerText = `Карточка ${
     flashcardSession.index + 1
   } / ${flashcardSession.queue.length}`;
 
-  const card = flashcardSession.queue[flashcardSession.index];
+  if (flashcardSession.queue.length === 0) {
+    frontEl.innerText = "Карточек нет";
+    frontEl.classList.add("front");
+    answerEl.style.display = "none";
+    document.getElementById("flashcardProgress").innerText = `Карточка 0 / 0`;
+    return;
+  }
+
+  if (flashcardSession.index >= flashcardSession.queue.length) {
+    frontEl.innerText = "Повторение закончено 🎉";
+    frontEl.classList.add("front");
+    answerEl.style.display = "none";
+    document.getElementById(
+      "flashcardProgress"
+    ).innerText = `Карточка ${flashcardSession.queue.length} / ${flashcardSession.queue.length}`;
+    return;
+  }
 
   if (!flashcardSession.showAnswer) {
     frontEl.classList.add("front");
@@ -405,8 +531,36 @@ document.getElementById("toFlashcardsBtn").addEventListener("click", () => {
 
 document.getElementById("toListBtn").addEventListener("click", showListMode);
 
-document.getElementById("knowBtn").addEventListener("click", () => {
+document.getElementById("knowBtn").addEventListener("click", async () => {
+  const card = flashcardSession.queue[flashcardSession.index];
+  if (!card) return;
+
+  // Обновляем только в режиме smart
+  if (flashcardSession.modeType === "smart") {
+    await openDB();
+    const transaction = db.transaction("cards", "readwrite");
+    const store = transaction.objectStore("cards");
+
+    const getRequest = store.index("front").get(card.front);
+    getRequest.onsuccess = (e) => {
+      const dbCard = e.target.result;
+      if (dbCard) {
+        // Увеличиваем counter на 1
+        dbCard.counter = (dbCard.counter || 0) + 1;
+
+        // Обновляем daysLeft, например, равно counter
+        dbCard.daysLeft = fibonacciByIndex(dbCard.counter + 1) - 1;
+
+        // Сохраняем обратно в базу
+        store.put(dbCard);
+      }
+    };
+    getRequest.onerror = (err) =>
+      console.error("Ошибка при обновлении карточки:", err);
+  }
+
   flashcardSession.index++;
+  console.log(flashcardSession.index);
   flashcardSession.showAnswer = false;
   document.getElementById("dontKnowBtn").innerText = flashcardSession.showAnswer
     ? "Не знаю"
@@ -414,7 +568,11 @@ document.getElementById("knowBtn").addEventListener("click", () => {
   showFlashcard();
 });
 
-document.getElementById("dontKnowBtn").addEventListener("click", () => {
+document.getElementById("dontKnowBtn").addEventListener("click", async () => {
+  if (flashcardSession.index >= flashcardSession.queue.length) {
+    showFlashcard();
+    return;
+  }
   if (!flashcardSession.showAnswer) {
     flashcardSession.showAnswer = true;
     showFlashcard();
@@ -422,6 +580,26 @@ document.getElementById("dontKnowBtn").addEventListener("click", () => {
       flashcardSession.showAnswer ? "Не знаю" : "Показать ответ";
   } else {
     const card = flashcardSession.queue[flashcardSession.index];
+
+    // Если режим smart — обнуляем поля в базе
+    if (flashcardSession.modeType === "smart") {
+      await openDB();
+      const transaction = db.transaction("cards", "readwrite");
+      const store = transaction.objectStore("cards");
+
+      const getRequest = store.index("front").get(card.front); // используем front для поиска
+      getRequest.onsuccess = (e) => {
+        const dbCard = e.target.result;
+        if (dbCard) {
+          dbCard.counter =
+            dbCard.counter <= 3 ? (dbCard.counter == 0 ? 0 : 1) : 3;
+          dbCard.daysLeft = fibonacciByIndex(dbCard.counter + 1) - 1;
+          store.put(dbCard);
+        }
+      };
+      getRequest.onerror = (err) =>
+        console.error("Ошибка при получении карточки:", err);
+    }
 
     // Убираем текущую карточку из очереди после текущей позиции
     const remaining = flashcardSession.queue.slice(flashcardSession.index + 1);
@@ -461,7 +639,7 @@ document.getElementById("sortSelect").addEventListener("change", (e) => {
 });
 
 document.getElementById("refreshBtn").addEventListener("click", () => {
-  loadCards(); // просто перезагружаем таблицу
+  loadCards(1); // просто перезагружаем таблицу
 });
 
 document.getElementById("exportBtn").addEventListener("click", exportCards);
@@ -493,11 +671,67 @@ document.querySelectorAll(".mode-btn").forEach((btn) => {
     document.getElementById("flashcardCountSelect").style.display = "none";
 
     // сброс состояния
-    showAnswer = false;
-    flashcardIndex = 0;
+    flashcardSession.showAnswer = false;
+    flashcardSession.index = 0;
 
     loadFlashcards();
 
     console.log("Выбран режим:", flashcardSession.modeType);
   });
 });
+
+countInput.addEventListener("change", () => {
+  localStorage.setItem("flashcardCount", countInput.value);
+});
+
+document.getElementById("skipDayBtn").addEventListener("click", async () => {
+  if (!confirm("Пропустить один день?")) {
+    return;
+  }
+
+  await openDB();
+  const tx = db.transaction("cards", "readwrite");
+  const store = tx.objectStore("cards");
+
+  const req = store.getAll();
+  req.onsuccess = () => {
+    req.result.forEach((card) => {
+      if (typeof card.daysLeft === "number" && card.daysLeft >= 0) {
+        card.daysLeft = Math.max(0, card.daysLeft - 1);
+        store.put(card);
+      }
+    });
+  };
+
+  // обновляем дату последнего обновления
+  const today = new Date().toISOString().slice(0, 10);
+  localStorage.setItem("lastDaysUpdate", today);
+
+  loadCards(1);
+});
+
+document
+  .getElementById("resetAllCountersBtn")
+  .addEventListener("click", async () => {
+    if (!confirm("Сбросить счётчик и время у ВСЕХ карточек?")) return;
+
+    await openDB();
+    const tx = db.transaction("cards", "readwrite");
+    const store = tx.objectStore("cards");
+
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const cards = request.result;
+
+      cards.forEach((card) => {
+        card.counter = 0;
+        card.daysLeft = 0;
+        store.put(card);
+      });
+    };
+
+    request.onerror = (e) => console.error("Ошибка сброса карточек:", e);
+
+    loadCards(1);
+  });
