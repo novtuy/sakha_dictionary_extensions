@@ -508,13 +508,21 @@ function showFlashcard() {
 function showFlashcardsMode() {
   document.getElementById("flashcardMode").style.display = "block";
   document.getElementById("listMode").style.display = "none";
+  document.getElementById("instructionMode").style.display = "none";
   loadFlashcards();
 }
 
 function showListMode() {
   document.getElementById("flashcardMode").style.display = "none";
   document.getElementById("listMode").style.display = "block";
+  document.getElementById("instructionMode").style.display = "none";
   loadCards();
+}
+
+function showInstructionMode() {
+  document.getElementById("flashcardMode").style.display = "none";
+  document.getElementById("listMode").style.display = "none";
+  document.getElementById("instructionMode").style.display = "block";
 }
 
 document.getElementById("toFlashcardsBtn").addEventListener("click", () => {
@@ -592,7 +600,7 @@ document.getElementById("dontKnowBtn").addEventListener("click", async () => {
         const dbCard = e.target.result;
         if (dbCard) {
           dbCard.counter =
-            dbCard.counter <= 3 ? (dbCard.counter == 0 ? 0 : 1) : 3;
+            dbCard.counter <= 2 ? (dbCard.counter == 0 ? 0 : 1) : 2;
           dbCard.daysLeft = fibonacciByIndex(dbCard.counter + 1) - 1;
           store.put(dbCard);
         }
@@ -735,3 +743,55 @@ document
 
     loadCards(1);
   });
+
+document.addEventListener("keydown", (e) => {
+  capsOn = e.getModifierState("CapsLock");
+});
+
+document.addEventListener("beforeinput", (e) => {
+  const el = e.target;
+  if (!["INPUT", "TEXTAREA"].includes(el.tagName)) return;
+  if (e.data !== "\\") return;
+
+  const pos = el.selectionStart;
+  const text = el.value;
+
+  const map = {
+    е: "ө",
+    о: "ө",
+    у: "ү",
+    н: "ҥ",
+    ь: "һ",
+    4: "ҥ",
+    5: "ҕ",
+    6: "ө",
+    7: "һ",
+    8: "ү",
+  };
+
+  const prev = text[pos - 1];
+  if (!prev || !(prev.toLowerCase() in map)) {
+    e.preventDefault();
+    return;
+  }
+
+  e.preventDefault();
+
+  let replaced = map[prev.toLowerCase()];
+
+  if (/\d/.test(prev)) {
+    // цифры → по Caps Lock
+    if (capsOn) replaced = replaced.toUpperCase();
+  } else {
+    // буквы → по регистру буквы
+    if (prev === prev.toUpperCase()) {
+      replaced = replaced.toUpperCase();
+    }
+  }
+
+  el.value = text.slice(0, pos - 1) + replaced + text.slice(pos);
+
+  el.selectionStart = el.selectionEnd = pos;
+});
+
+document.getElementById("toInstructionBtn").addEventListener("click", showInstructionMode);
